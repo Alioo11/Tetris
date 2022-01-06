@@ -492,12 +492,12 @@ const brickCycle = () => {
         delLevel(selectedLevels);
         if (selectedLevels.length > 0) UpdateScore(10);
         //!                                                       this is the place to chage some thing 
-        let randomColor = colors[getRandomArbitrary(0,colors.length)]
-        cells.forEach((cell)=>{
-          cell.style.border = "1px solid rgb(255, 142, 142)"
+        // let randomColor = colors[getRandomArbitrary(0,colors.length)]
+        // cells.forEach((cell)=>{
+        //   cell.style.border = "1px solid rgb(255, 142, 142)"
           
-          cell.style.boxShadow = `inset 0px 0px 6px ${randomColor}`
-        })
+        //   cell.style.boxShadow = `inset 0px 0px 6px ${randomColor}`
+        // })
         gravity(selectedLevels);
         UpdateScore(5);
         brickCycle();

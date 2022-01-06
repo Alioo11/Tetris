@@ -22,8 +22,8 @@ body {
   height: 30px;
   background-color: #3c3c3c;
   transition: background-color 200ms;
-  border: 1px solid rgb(255, 142, 142);
-  box-shadow: inset 0px 0px 6px red;
+  border: 1px solid rgb(172, 172, 172);
+  box-shadow: inset 0px 0px 6px rgba(199, 199, 199,0.3);
 }
 .btn {
   box-shadow: 0rem 0rem 0.5rem rgba(104, 114, 255, 0.864),
