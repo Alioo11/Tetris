@@ -1,5 +1,6 @@
 const BOARD_WIDTH = 16;
 const BOARD_HEIGHT = 16;
+let score = 0;
 let direction = "down";
 const colors = [
   "#FF5555",
@@ -10,63 +11,196 @@ const colors = [
   "#ff8030",
 ];
 
+const generateColor = ()=>{
+  const generateRandomCode = ()=> Math.floor(Math.random()*1000%256)
+  return `rgb(${generateRandomCode()},${generateRandomCode()},${generateRandomCode()})`
+}
+
 function getRandomArbitrary(min, max) {
   return Math.round(Math.random() * (max - min) + min);
 }
+let gameover = document.querySelector(".gameOver");
+let replay = document.querySelector(".replay");
+let tetris = document.querySelector(".tetris");
+let scoreCount = document.querySelectorAll(".scoreSpan");
+let startBtn = document.getElementById("start");
+let blurePage = document.getElementsByClassName("blurBackground")[0];
+let guidePage = document.getElementsByClassName("guidePage")[0];
+
+const gotIt = () => {
+  tetris.style.filter = "none";
+  startBtn.style.filter = "none";
+
+  blurePage.style.display = "none";
+  guidePage.style.display = "none";
+};
+
+replay.addEventListener("click", () => {
+  location.reload();
+});
+
+scoreCount.forEach((item) => (item.innerHTML = score));
+
+startBtn.addEventListener(
+  "click",
+  () => {
+    brickCycle();
+  },
+  { once: true }
+);
+
+const UpdateScore = (score) => {
+  scoreCount.forEach((item) => {
+    item.innerHTML = parseInt(item.innerHTML) + score;
+  });
+};
 
 let cells = document.querySelectorAll(".cell");
 window.addEventListener("keydown", (e) => {
-  switch (e.key) {
-    case "ArrowUp":
-      direction = "up";
-      break;
-    case "ArrowDown":
-      direction = "down";
-      break;
-    case "ArrowLeft":
-      direction = "left";
-      break;
-    case "ArrowRight":
-      direction = "right";
-      break;
-    case "b":
-      makeBrick();
-      break;
-    case "x":
-      stop();
-      break;
+  let validKey = false;
+  if (e.key === "e") {
+    currentBrick.rotate("right");
+    validKey = true;
+  } else if (e.key === "q") {
+    currentBrick.rotate("left");
+    validKey = true;
+  } else {
+    switch (e.key) {
+      case "w":
+        direction = "up";
+        validKey = true;
+        break;
+      case "s":
+        direction = "down";
+        validKey = true;
+        break;
+      case "a":
+        direction = "left";
+        validKey = true;
+        break;
+      case "d":
+        direction = "right";
+        validKey = true;
+        break;
+      case "b":
+        makeBrick();
+        break;
+      case "x":
+        stop();
+        break;
+    }
+    if (validKey) {
+      currentBrick.move(direction);
+    }
   }
-  currentBrick.move(direction);
 });
 
 class Brick {
-  constructor(id, indexCell) {
+  constructor(id, pivot) {
     this.id = id;
-    this.indexCell = indexCell;
+    this.pivot = pivot;
+    this.rotateStatus = 0;
+  }
+  rotate(rotateDirection) {
+    if (this.isValidRotation(rotateDirection)) {
+      this.remove();
+      this.rotateStatus = this.preRotate(rotateDirection);
+      this.print();
+    }
+  }
+  preRotate(rotateDirection) {
+    let tempRotation = this.rotateStatus;
+    switch (rotateDirection) {
+      case "right": {
+        tempRotation = tempRotation - 1;
+        if (tempRotation === -1) tempRotation = 3;
+        break;
+      }
+      case "left": {
+        tempRotation = tempRotation + 1;
+        if (tempRotation === 4) tempRotation = 0;
+        break;
+      }
+    }
+    return tempRotation;
+  }
+  isValidRotation(rotateDirection) {
+    let isValidRotate = true;
+    let beforeRotate = this.rotateStatus;
+    let afterRotate = this.preRotate(rotateDirection);
+    let beforeRotateState = this.updatePatternFromPivot(beforeRotate);
+    let afterRotateState = this.updatePatternFromPivot(afterRotate);
+
+    let heightDiff = afterRotateState.map((item, idx) => {
+      return Math.abs(
+        Math.floor(item / BOARD_WIDTH) -
+          Math.floor(beforeRotateState[idx] / BOARD_WIDTH)
+      );
+    });
+    let widthDiff = afterRotateState.map((item, idx) => {
+      return Math.abs(
+        Math.floor(item % BOARD_WIDTH) -
+          Math.floor(beforeRotateState[idx] % BOARD_WIDTH)
+      );
+    });
+
+    for (let i = 0; i < afterRotateState.length; i++) {
+      if (afterRotateState[i] < 0) {
+        isValidRotate = false;
+      }
+      if (Math.floor(afterRotateState[i] / BOARD_WIDTH) >= BOARD_HEIGHT)
+        isValidRotate = false;
+
+      // if (heightDiff[i] !== 0) {
+      if (widthDiff[i] > BOARD_WIDTH - 4) {
+        isValidRotate = false;
+      }
+      // }
+      if (isValidRotate) {
+        if (cells[afterRotateState[i]].getAttribute("key") != this.id) {
+          if (cells[afterRotateState[i]].getAttribute("key") != 0) {
+            isValidRotate = false;
+          }
+        }
+      }
+    }
+
+    return isValidRotate;
   }
   print() {
-    this.pattern.forEach((cell) => {
+    let updatedBrickState = this.updatePatternFromPivot(this.rotateStatus);
+    updatedBrickState.forEach((cell) => {
       cells[cell].style.backgroundColor = this.color;
       cells[cell].setAttribute("key", this.id);
     });
   }
   remove() {
-    this.pattern.forEach((cell) => {
+    let updatedBrickState = this.updatePatternFromPivot(this.rotateStatus);
+    updatedBrickState.forEach((cell) => {
       cells[cell].style.backgroundColor = "#3c3c3c";
       cells[cell].setAttribute("key", 0);
     });
   }
   Up() {
-    return this.pattern.map((cell) => (cell -= BOARD_WIDTH));
+    let temp = this.pivot;
+    return (temp -= BOARD_WIDTH);
   }
   Down() {
-    return this.pattern.map((cell) => (cell += BOARD_WIDTH));
+    let temp = this.pivot;
+    return (temp += BOARD_WIDTH);
   }
   Left() {
-    return this.pattern.map((cell) => (cell -= 1));
+    let temp = this.pivot;
+    return (temp -= 1);
   }
   Right() {
-    return this.pattern.map((cell) => (cell += 1));
+    let temp = this.pivot;
+    return (temp += 1);
+  }
+  updatePatternFromPivot(rotateStatus) {
+    return this.pattern[rotateStatus].map((cell) => {
+      return (cell += this.pivot);
+    });
   }
   isValidMove(direction) {
     let shadow = this.shadow(direction);
@@ -106,7 +240,13 @@ class Brick {
       }
     }
     /********************************** check if hits an othe block****************************************** */
+
     if (isValid) {
+      shadow = shadow.filter((cell) => {
+        if (cells[cell].getAttribute("key") != this.id) {
+          return cell;
+        }
+      });
       shadow.forEach((cell) => {
         if (cells[cell].getAttribute("key") != 0) isValid = false;
       });
@@ -114,46 +254,51 @@ class Brick {
     return isValid;
   }
   shadow(direction) {
-    let shadow = [];
+    let shadow;
+    let shadowArray = [];
     switch (direction) {
       case "up": {
-        shadow = [...this.Up()];
+        shadow = this.Up();
         break;
       }
       case "down": {
-        shadow = [...this.Down()];
+        shadow = this.Down();
         break;
       }
       case "left": {
-        shadow = [...this.Left()];
+        shadow = this.Left();
         break;
       }
       case "right": {
-        shadow = [...this.Right()];
+        shadow = this.Right();
         break;
       }
     }
-    shadow = shadow.filter((n) => !this.pattern.includes(n));
-    return shadow;
+
+    shadowArray = this.pattern[this.rotateStatus].map((cell) => {
+      return (cell += shadow);
+    });
+
+    return shadowArray;
   }
   move(direction) {
     if (this.isValidMove(direction)) {
       this.remove();
       switch (direction) {
         case "down": {
-          this.pattern = this.Down();
+          this.pivot = this.Down();
           break;
         }
         case "up": {
-          this.pattern = this.Up();
+          this.pivot = this.Up();
           break;
         }
         case "left": {
-          this.pattern = this.Left();
+          this.pivot = this.Left();
           break;
         }
         case "right": {
-          this.pattern = this.Right();
+          this.pivot = this.Right();
           break;
         }
         default: {
@@ -163,69 +308,68 @@ class Brick {
       this.print();
     }
   }
-  angleConversion(angle, type = true) {
-    if (type) {
-      return (Math.PI / 180) * angle;
-    } else {
-      return Math.round((180 / Math.PI) * angle);
-    }
-  }
-  celltoMatrix(cellIndex) {
-    let y = cellIndex % BOARD_WIDTH;
-    let x = cellIndex - Math.floor(cellIndex / BOARD_WIDTH) * BOARD_WIDTH;
-    return [x, y];
-  }
-  calculateDeg(height, width) {
-    return Math.round((Math.atan(height / width) * 180) / Math.PI);
-  }
-  fidnDegree(cellIndex) {
-    debugger;
-    const povitcordinant = this.celltoMatrix(this.pattern[this.indexCell]);
-    const thisCell = this.celltoMatrix(cellIndex);
-    // const diffCells = [
-    //   povitcordinant[0] - thisCell[0],
-    //   povitcordinant[1] - thisCell[1],
-    // ];
-    console.log("this is the poivot" + povitcordinant);
-    console.log("this is the this cell" + thisCell);
-  }
 }
+
 class StrBrick extends Brick {
-  constructor(id, indexCell, color) {
-    super(id, indexCell);
-    this.pattern = [5, 6, 7, 8];
+  constructor(id, pivot, color) {
+    super(id, pivot);
+    this.pattern = [
+      [-1, 0, 1, 2],
+      [-16, 0, 16, 32],
+      [-1, 0, 1, 2],
+      [-16, 0, 16, 32],
+    ];
     this.color = color;
   }
 }
 class Lbrick extends Brick {
-  constructor(id, indexCell, color) {
-    super(id, indexCell);
-    this.pattern = [22, 6, 7, 8];
+  constructor(id, pivot, color) {
+    super(id, pivot);
+    this.pattern = [
+      [16, 0, 1, 2],
+      [-1, 0, 16, 32],
+      [-2, -1, 0, -16],
+      [-32, -16, 0, 1],
+    ];
     this.color = color;
   }
 }
 class boxBrick extends Brick {
-  constructor(id, indexCell, color) {
-    super(id, indexCell);
-    this.pattern = [6, 7, 22, 23];
+  constructor(id, pivot, color) {
+    super(id, pivot);
+    this.pattern = [
+      [6, 7, 22, 23],
+      [6, 7, 22, 23],
+      [6, 7, 22, 23],
+      [6, 7, 22, 23],
+    ];
     this.color = color;
   }
 }
 class halfStraight extends Brick {
-  constructor(id, indexCell, color) {
-    super(id, indexCell);
-    this.pattern = [6, 22, 23, 38];
+  constructor(id, pivot, color) {
+    super(id, pivot);
+    this.pattern = [
+      [-16, 0, 1, 17],
+      [0, 1, 15, 16],
+      [0, -1, -17, 16],
+      [-1, 0, -16, -15],
+    ];
     this.color = color;
   }
 }
 class curlyBrick extends Brick {
-  constructor(id, indexCell, color) {
-    super(id, indexCell);
-    this.pattern = [38, 22, 23, 7];
+  constructor(id, pivot, color) {
+    super(id, pivot);
+    this.pattern = [
+      [-1, 0, -16, 16],
+      [-1, 0, 16, 1],
+      [1, 0, 16, -16],
+      [-1, 0, -16, 1],
+    ];
     this.color = color;
   }
 }
-
 const levelCheck = () => {
   const filledLevels = [];
   for (let i = 0; i < BOARD_HEIGHT; i++) {
@@ -279,59 +423,87 @@ const stop = () => {
   clearInterval(interval);
 };
 
+const test = () => {
+  currentBrick = new StrBrick(
+    getRandomArbitrary(0, 100),
+    6,
+    generateColor()
+  );
+};
+
 const brickCycle = () => {
   let choiseBrick = getRandomArbitrary(0, 4);
   switch (choiseBrick) {
     case 0: {
       currentBrick = new StrBrick(
         getRandomArbitrary(0, 100),
-        2,
-        colors[getRandomArbitrary(0, colors.length - 1)]
+        22,
+        generateColor()
       );
       break;
     }
     case 1: {
       currentBrick = new Lbrick(
         getRandomArbitrary(0, 100),
-        2,
-        colors[getRandomArbitrary(0, colors.length - 1)]
+        22,
+        generateColor()
       );
       break;
     }
     case 2: {
       currentBrick = new boxBrick(
         getRandomArbitrary(0, 100),
-        2,
-        colors[getRandomArbitrary(0, colors.length - 1)]
+        15,
+        generateColor()
       );
       break;
     }
     case 3: {
       currentBrick = new halfStraight(
         getRandomArbitrary(0, 100),
-        2,
-        colors[getRandomArbitrary(0, colors.length - 1)]
+        22,
+        generateColor()
       );
       break;
     }
     case 4: {
       currentBrick = new curlyBrick(
         getRandomArbitrary(0, 100),
-        2,
-        colors[getRandomArbitrary(0, colors.length - 1)]
+        22,
+        generateColor()
       );
       break;
     }
   }
-  currentBrick.print();
-  clearInterval(interval);
-  interval = setInterval(() => {
-    currentBrick.move("down");
-    if (!currentBrick.isValidMove("down")) {
-      let selectedLevels = levelCheck();
-      delLevel(selectedLevels);
-      gravity(selectedLevels);
-      brickCycle();
-    }
-  }, 500);
+  const gameOver = () => {
+    clearInterval(interval);
+    tetris.style.display = "none";
+    startBtn.style.display = "none";
+    gameover.style.display = "flex";
+  };
+
+  if (currentBrick.isValidMove("down")) {
+    currentBrick.print();
+    clearInterval(interval);
+    interval = setInterval(() => {
+      currentBrick.move("down");
+      if (!currentBrick.isValidMove("down")) {
+        let selectedLevels = levelCheck();
+        delLevel(selectedLevels);
+        if (selectedLevels.length > 0) UpdateScore(10);
+        //!                                                       this is the place to chage some thing 
+        let randomColor = colors[getRandomArbitrary(0,colors.length)]
+        cells.forEach((cell)=>{
+          cell.style.border = "1px solid rgb(255, 142, 142)"
+          
+          cell.style.boxShadow = `inset 0px 0px 6px ${randomColor}`
+        })
+        gravity(selectedLevels);
+        UpdateScore(5);
+        brickCycle();
+      }
+    }, 1000);
+  } else {
+    gameOver();
+  }
 };
