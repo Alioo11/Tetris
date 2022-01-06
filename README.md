@@ -1,2 +1,2 @@
 # Tetris
-just the classic Tetris with written in pure javascript 
+just the classic Tetris written in pure javascript 
